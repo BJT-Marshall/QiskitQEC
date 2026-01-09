@@ -36,10 +36,6 @@ def logi_1():
 
     return qc
 
-#Logical X and Z Operators
-
-X_L = Pauli("XXXXX").to_instruction()
-Z_L = Pauli("ZZZZZ").to_instruction()
 
 #Syndrome Detection on a single logical qubit
 
@@ -138,50 +134,56 @@ def QEC(logical_qubit):
     
     qc, clr = syndrome_detection(logical_qubit)
     qc = dynamic_error_correction(qc,clr)
+    qc.reset(range(clr.size)) #Reset the Ancillary Qubits for future QEC cycles.
 
-    return qc
+    return qc, clr
 
 
 
 #Examples:
 
-from qiskit import transpile
-from qiskit_aer import AerSimulator
-from qiskit.visualization import plot_histogram
+#Bool to change to run examples:
+example = False
 
-#No Error Example:------------------------------------------------------------------------------------------------------
+if example:
 
+    from qiskit import transpile
+    from qiskit_aer import AerSimulator
+    from qiskit.visualization import plot_histogram
 
-zero_L = logi_0() #Initialise a logical qubit in the state |0>_L
-qc = QEC(zero_L) #Create the single qubit QEC circuit for this logical qubit
-qc.draw(output = 'mpl', filename = 'NoErrorExampleCircuit') #Complete error correcting circuit visualization.
-
-simulator = AerSimulator()
-circ = transpile(qc, simulator)
-
-result = simulator.run(circ).result() #Run and get counts
-counts = result.get_counts(circ)
-plot_histogram(counts, title='Syndrome Measurement Result', filename = 'NoErrorExampleCounts') 
-#All counts will be in the state |0000> of the ancillary qubits, corresponding to no error.
+    #No Error Example:------------------------------------------------------------------------------------------------------
 
 
-#Single Qubit Error Example:--------------------------------------------------------------------------------------------
+    zero_L = logi_0() #Initialise a logical qubit in the state |0>_L
+    qc = QEC(zero_L) #Create the single qubit QEC circuit for this logical qubit
+    qc.draw(output = 'mpl', filename = 'NoErrorExampleCircuit') #Complete error correcting circuit visualization.
 
-zero_L = logi_0() #Initialise a logical qubit in the state |0>_L
-#-----------------------ERROR----------------------------
-zero_L.x(3) #Manually add a bit-flip error on the 4'th qubit. 
-#--------------------------------------------------------
-qc = QEC(zero_L) #Create the single qubit QEC circuit for this logical qubit
-qc.draw(output = 'mpl', filename = 'X4ErrorExampleCircuit') #Complete error correcting circuit visualization.
+    simulator = AerSimulator()
+    circ = transpile(qc, simulator)
 
-simulator = AerSimulator()
-circ = transpile(qc, simulator)
+    result = simulator.run(circ).result() #Run and get counts
+    counts = result.get_counts(circ)
+    plot_histogram(counts, title='Syndrome Measurement Result', filename = 'NoErrorExampleCounts') 
+    #All counts will be in the state |0000> of the ancillary qubits, corresponding to no error.
 
-result = simulator.run(circ).result() #Run and get counts
-counts = result.get_counts(circ)
-plot_histogram(counts, title='Syndrome Measurement Result', filename = 'X4ErrorExampleCounts') 
-#All counts will be in the state |0110> of the ancillary qubits, corresponding to no a bit flip error on the 4'th qubit. 
-#This error is then corrected by application of a further bit-flip on the 4'th qubit (i.e. X4).
+
+    #Single Qubit Error Example:--------------------------------------------------------------------------------------------
+
+    zero_L = logi_0() #Initialise a logical qubit in the state |0>_L
+    #-----------------------ERROR----------------------------
+    zero_L.x(3) #Manually add a bit-flip error on the 4'th qubit. 
+    #--------------------------------------------------------
+    qc = QEC(zero_L) #Create the single qubit QEC circuit for this logical qubit
+    qc.draw(output = 'mpl', filename = 'X4ErrorExampleCircuit') #Complete error correcting circuit visualization.
+
+    simulator = AerSimulator()
+    circ = transpile(qc, simulator)
+
+    result = simulator.run(circ).result() #Run and get counts
+    counts = result.get_counts(circ)
+    plot_histogram(counts, title='Syndrome Measurement Result', filename = 'X4ErrorExampleCounts') 
+    #All counts will be in the state |0110> of the ancillary qubits, corresponding to no a bit flip error on the 4'th qubit. 
+    #This error is then corrected by application of a further bit-flip on the 4'th qubit (i.e. X4).
 
 
 
