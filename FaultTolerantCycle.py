@@ -50,7 +50,6 @@ def cycle(n_logical_qubits, operation_list, structure = '9n'):
     #Create the QuantumCircuit object to add the logical qubits to.
     qc = QuantumCircuit()
     for i in range(n_logical_qubits):
-        qc.add_register(ClassicalRegister(4, 'c'+str(i)))
         qc.add_register(QuantumRegister(9, 'q'+str(i)))
 
 
@@ -62,6 +61,7 @@ def cycle(n_logical_qubits, operation_list, structure = '9n'):
     for Lq in initial_logical_qubits:
         QC, clr = QEC(Lq)
         initial_QEC.append(QC)
+        qc.add_register(clr)
         clrs.append(clr)
     
     for i in range(len(initial_QEC)):
@@ -72,6 +72,7 @@ def cycle(n_logical_qubits, operation_list, structure = '9n'):
     #Load the current logical qubit states
     #Perform Transversal Logic Gates
     for op in operation_list:
+        qc.barrier()
         if op[0] == 'CX':
             op_circ = transversal_CX()
             map = [i for i in logical_qubit_map[op[1]]]
@@ -92,14 +93,56 @@ def cycle(n_logical_qubits, operation_list, structure = '9n'):
             qc.append(op_circ,logical_qubit_map[op[1]])
         else:
             print("Unsupported Operation")
-        
+        qc.barrier()
 
     #Perform QEC
+    
+    #A 'logical qubit' must be passes into the QEC function to perform QEC on. As we want to just perform QEC on out existing circuit 
+    #(i.e. append our circuit with the QEC procedure) we perform QEC on an empty logical qubit and append this to our circuit.
+        empty_logical_qubits = [QuantumCircuit(5) for i in range(n_logical_qubits)]
+
+        clrs = []
+        QEC_circs = []
+        for Lq in empty_logical_qubits:
+            QC, clr = QEC(Lq)
+            QEC_circs.append(QC)
+            qc.add_register(clr)
+            clrs.append(clr)
+        
+        for i in range(len(initial_QEC)):
+            QEC_circs[i].decompose().draw(output = 'mpl', filename = str(i)+'SingleEmpty')
+            qc = qc.compose(QEC_circs[i],qubit_map[i],clrs[i])
+            #qc.draw(output = 'mpl', filename = str(i)+'compEmpty', fold = -1)
+
+
+
 
 
 
     return qc
 
 
-test = cycle(2,[['X',1],['CZ',0,1]])
-test.draw(output = 'mpl', filename = '0', fold = -1)
+#test = cycle(2,[['X',1],['CZ',0,1]])
+#test.draw(output = 'mpl', filename = '00', fold = -1)
+
+def measure_all_logical_qubits(quantum_circuit):
+
+    logical_qubit_map = [[x for x in range(9*n+4,9*n+9)] for n in range(quantum_circuit.num_qubits//9)]
+    for i in range(quantum_circuit.num_qubits//9):
+        measure_reg = ClassicalRegister(5, 'meas'+str(i))
+        quantum_circuit.add_register(measure_reg)
+        quantum_circuit.measure(logical_qubit_map[i],measure_reg)
+
+    return quantum_circuit
+
+#test_2 = measure_all_logical_qubits(test)
+#test_2.draw(output = 'mpl', filename = '000')
+
+def measure_logical_qubits(quantum_circuit, logical_qubit_list):
+    logical_qubit_map = [[x for x in range(9*n+4,9*n+9)] for n in range(quantum_circuit.num_qubits//9)]
+    for i in range(len(logical_qubit_list)):
+        measure_reg = ClassicalRegister(5, 'meas'+str(i))
+        quantum_circuit.add_register(measure_reg)
+        quantum_circuit.measure(logical_qubit_map[logical_qubit_list[i]],measure_reg)
+
+    return quantum_circuit
