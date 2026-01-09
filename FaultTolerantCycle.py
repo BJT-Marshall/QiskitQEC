@@ -146,3 +146,134 @@ def measure_logical_qubits(quantum_circuit, logical_qubit_list):
         quantum_circuit.measure(logical_qubit_map[logical_qubit_list[i]],measure_reg)
 
     return quantum_circuit
+
+#-------------------------------------------------------------Refactoring----------------------------------------------------------------
+
+class LogicalQuantumCircuit():
+
+
+    def __init__(self,n_logical_qubits,structure = '9n'):
+        qubit_map = []
+        if structure == '9n':
+            logical_qubit_map = [[x for x in range(9*n+4,9*n+9)] for n in range(n_logical_qubits)]
+            ancillary_qubit_map = [[x for x in range(9*n,9*n+4)] for n in range(n_logical_qubits)]
+            qubit_map = [[x for x in range(9*n,9*n+9)] for n in range(n_logical_qubits)]
+        elif structure == '4n5n':
+            logical_qubit_map = [[x for x in range(4*n_logical_qubits,4*n_logical_qubits+5*n)] for n in range(n_logical_qubits)]
+            ancillary_qubit_map = [[x for x in range(4*n,4*n+4)] for n in range(n_logical_qubits)]
+            for i in range(n_logical_qubits):
+                temp = []
+                for element in ancillary_qubit_map[i]:
+                    temp.append(element)
+                for element in logical_qubit_map[i]:
+                    temp.append(element)
+                qubit_map.append(temp)
+        else:
+            print("Unsupported Structure")
+
+        #Qubit Map Attributes
+        self.qubit_map = qubit_map
+        self.logical_qubit_map = logical_qubit_map
+        self.ancillary_qubit_map = ancillary_qubit_map
+        
+        #Create the QuantumCircuit object to add the logical qubits to.
+        qc = QuantumCircuit()
+        for i in range(n_logical_qubits):
+            qc.add_register(QuantumRegister(9, 'q'+str(i)))
+
+        initial_logical_qubits = [logi_0() for i in range(n_logical_qubits)]
+        
+        #Initial error correction for single qubit errors in state preperation.
+        i=0
+        for Lq in initial_logical_qubits:
+            QC, clr = QEC(Lq)
+            qc.add_register(clr)
+            qc = qc.compose(QC,qubit_map[i],clr)
+            i+=1
+    
+        #Quantum Circuit Attribute
+        self.qc = qc
+        self.num_logical_qubits = n_logical_qubits
+
+        return None
+    
+    #---------------------------------------------------------Logic Gates--------------------------------------------------------------------
+    
+    def x(self, logical_qubit):
+
+        self.qc.barrier()
+        op_circ = X_L
+        self.qc.append(op_circ,self.logical_qubit_map[logical_qubit])
+        self.qc.barrier()
+        self.post_op_QEC()
+
+        return None
+    
+    def z(self, logical_qubit):
+        
+        op_circ = X_L
+        self.qc.append(op_circ,self.logical_qubit_map[logical_qubit])
+        self.post_op_QEC()
+
+        return None
+    
+    def cx(self, logical_control_qubit, logical_target_qubit):
+
+        self.qc.barrier()
+        op_circ = transversal_CX()
+        map = [i for i in self.logical_qubit_map[logical_control_qubit]]
+        for i in self.logical_qubit_map[logical_target_qubit]:
+            map.append(i)
+        self.qc.append(op_circ,map)
+        self.qc.barrier()
+        self.post_op_QEC()
+
+        return None
+    
+    def cz(self, logical_control_qubit, logical_target_qubit):
+
+        op_circ = transversal_CZ()
+        map = [self.logical_qubit_map[logical_control_qubit],self.logical_qubit_map[logical_target_qubit]]
+        self.qc.append(op_circ,map)
+        self.post_op_QEC()
+
+        return None
+    
+
+    def post_op_QEC(self):
+        empty_logical_qubits = [QuantumCircuit(5) for i in range(self.num_logical_qubits)]
+        i=0
+        for Lq in empty_logical_qubits:
+            QC, clr = QEC(Lq)
+            self.qc.add_register(clr)
+            self.qc = self.qc.compose(QC,self.qubit_map[i],clr)
+            i+=1
+    
+        return None
+    
+
+    #------------------------------------------------------------Measurement----------------------------------------------------------------
+
+    def measure_all(self):
+        
+        for i in range(self.num_logical_qubits):
+            measure_reg = ClassicalRegister(5, 'meas'+str(i))
+            self.qc.add_register(measure_reg)
+            self.qc.measure(self.logical_qubit_map[i],measure_reg)
+
+        return None
+    
+    def measure(self, logical_qubits):
+
+        if type(logical_qubits) == int:
+            measure_reg = ClassicalRegister(5, 'meas'+str(logical_qubits))
+            self.qc.add_register(measure_reg)
+            self.qc.measure(self.logical_qubit_map[logical_qubits],measure_reg)
+        else:
+            for i in range(len(logical_qubits)):
+                measure_reg = ClassicalRegister(5, 'meas'+str(i))
+                self.qc.add_register(measure_reg)
+                self.qc.measure(self.logical_qubit_map[logical_qubits[i]],measure_reg)
+
+        return None
+
