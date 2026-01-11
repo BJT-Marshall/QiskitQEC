@@ -2,7 +2,7 @@ from qiskit import QuantumCircuit, ClassicalRegister, QuantumRegister
 
 #Local Imports
 from FiveQubitCode import QEC, logi_0, logi_1
-from TransversalLogicGates import X_L, Z_L, transversal_CX, transversal_CZ
+from TransversalLogicGates import X_L, Z_L, Y_L, transversal_CX, transversal_CZ, transversal_CY, K_gate
 
 #Goal is to make some sort of framework that puts things together
 #At the moment EACH logical qubit uses a seperate set of ancillary qubits. This is good if qubit coherence time is a limiting 
@@ -199,6 +199,9 @@ class LogicalQuantumCircuit():
     
     #---------------------------------------------------------Logic Gates--------------------------------------------------------------------
     
+
+
+    #-----------------------------Single Qubit Gates------------------------------------
     def x(self, logical_qubit):
 
         self.qc.barrier()
@@ -211,11 +214,36 @@ class LogicalQuantumCircuit():
     
     def z(self, logical_qubit):
         
+        self.qc.barrier()
         op_circ = X_L
         self.qc.append(op_circ,self.logical_qubit_map[logical_qubit])
+        self.qc.barrier()
         self.post_op_QEC()
 
         return None
+    
+    def y(self, logical_qubit):
+        
+        self.qc.barrier()
+        op_circ = Y_L
+        self.qc.append(op_circ,self.logical_qubit_map[logical_qubit])
+        self.qc.barrier()
+        self.post_op_QEC()
+
+        return None
+    
+    def K(self, logical_qubit, params):
+        K = K_gate(params[0],params[1],params[2])
+        map = [i for i in self.logical_qubit_map[logical_qubit]]
+        self.qc.barrier()
+        self.qc.append(K,map)
+        self.qc.barrier()
+        self.post_op_QEC()
+
+        return None
+    
+
+    #--------------------------------------------Two Qubit Contol Gates----------------------------------------
     
     def cx(self, logical_control_qubit, logical_target_qubit):
 
@@ -232,12 +260,27 @@ class LogicalQuantumCircuit():
     
     def cz(self, logical_control_qubit, logical_target_qubit):
 
+        self.qc.barrier()
         op_circ = transversal_CZ()
         map = [self.logical_qubit_map[logical_control_qubit],self.logical_qubit_map[logical_target_qubit]]
         self.qc.append(op_circ,map)
+        self.qc.barrier()
         self.post_op_QEC()
 
         return None
+    
+    def cy(self, logical_control_qubit, logical_target_qubit):
+
+        self.qc.barrier()
+        op_circ = transversal_CY()
+        map = [self.logical_qubit_map[logical_control_qubit],self.logical_qubit_map[logical_target_qubit]]
+        self.qc.append(op_circ,map)
+        self.qc.barrier()
+        self.post_op_QEC()
+
+        return None
+    
+    #-------------------------------------------Helpers---------------------------------------------------
     
 
     def post_op_QEC(self):
@@ -277,3 +320,28 @@ class LogicalQuantumCircuit():
 
         return None
 
+
+
+
+#Test if action of X_L is as expected and general framwork works.
+
+test = LogicalQuantumCircuit(1)
+test.x(0)
+test.measure_all()
+test.qc.draw(output = 'mpl', filename = '3', fold = -1)
+
+from qiskit import transpile
+from qiskit_aer import AerSimulator
+from qiskit.visualization import plot_histogram
+
+simulator = AerSimulator()
+circ = transpile(test.qc, simulator)
+
+result = simulator.run(circ).result() #Run and get counts
+print(result)
+counts = result.get_counts(circ)
+print(counts)
+plot_histogram(counts, title='Logical X counts on |0>_L', filename = 'X_L_Test') 
+
+#Works, but measurement in the computational basis isnt ideal. Need to figure out a way to measure in the 'logical qubit basis'. 
+#Encoding projector is a singular matrix so cant apply an inverse to re-map to the computational basis before measurement. Need to think about this. 
