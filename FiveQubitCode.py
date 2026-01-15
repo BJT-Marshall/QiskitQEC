@@ -20,7 +20,13 @@ logi_1_vector = [0,-0.25,-0.25,0,-0.25,0,0,-0.25,-0.25,0,0,0.25,0,0.25,-0.25,0,-
 
 def logi_0():
     """
-    Returns a 5 qubit QuantumCircuit object initialised in the 5-qubit-code logical zero state, |0>_L. 
+    Creates a 5 qubit QuantumCircuit object initialised in the 5-qubit-code logical zero state, :math:`\ket{0}_L`. 
+    Used for initialising circuits in the 5-qubit code, preparing them for logical operations and syndrome measurements,
+    Appending the returned QuantumCircuit to an existing instance of a logical qubit resets the qubit to the :math:`\ket{0}_L` state.
+
+    :returns: Initialised :math:`\ket{0}_L` state.
+    :rtype: QuantumCircuit
+
     """
     qc = QuantumCircuit(5)
     qc.initialize(logi_0_vector,range(5))
@@ -29,7 +35,13 @@ def logi_0():
 
 def logi_1():
     """
-    Returns a 5 qubit QuantumCircuit object initialised in the 5-qubit-code logical one state, |1>_L. 
+    Creates a 5 qubit QuantumCircuit object initialised in the 5-qubit-code logical zero state, :math:`\ket{1}_L`. 
+    Used for initialising circuits in the 5-qubit code, preparing them for logical operations and syndrome measurements,
+    Appending the returned QuantumCircuit to an existing instance of a logical qubit resets the qubit to the :math:`\ket{1}_L` state.
+
+    :returns: Initialised :math:`\ket{1}_L` state.
+    :rtype: QuantumCircuit
+
     """
     qc = QuantumCircuit(5)
     qc.initialize(logi_1_vector,range(5))
@@ -41,13 +53,16 @@ def logi_1():
 
 def syndrome_detection(logical_qubit):
     """
-    Takes in a single logical qubit as a QuantumCircuit object, applies all syndrome operators controlled via seperate ancillary qubits and measures
-    the resulting syndrome measurments to a classical register in the order (Syndrome Result, cr) = ((M1,3),(M2,2),(M3,1),(M4,0)). This reverse ordering
-    is done to produce the correct binary keys for error identification.
+    Takes a single logical qubit encoded in the 5-qubit-code possibly containing a single qubit error and creates a syndrome detection circuit to identify the error. 
+    Resulting syndrome measurements are stored in a ClassicalRegister in the order :math:`(result, clbit) = \{(M1,3),(M2,2),(M3,1),(M4,0)\}`. 
+    This reverse ordering is done to produce the correct binary keys for error identification.
     
-    :param logical_qubit: 5 qubit QuantumCircuit object containing the current state of a single logical qubit.
-    :return qc: The complete syndrome detection circuit including the intial logical qubit state and syndrome measurments.
-    :return clr: The classical register to which the syndrome measurement results are stored.
+    
+    :param logical_qubit: Logical qubit containing the current possibly error prone state.
+    :type logical_qubit: QuantumCircuit
+    :returns qc: The complete syndrome detection circuit including syndrome detection via ancillary qubits and subsequent syndrome measurment.
+    :returns clr: The classical register in which the syndrome measurement results are stored.
+    :rtype qc: QuantumCircuit
     """
     syndromes = [M1,M2,M3,M4]
     clr = ClassicalRegister(4)
@@ -84,12 +99,26 @@ error_paulis = [None,"X1","Z3","X5","Z5","Z2","X4","Y5","X2","Z4","Z1","Y1","X3"
 
 def single_qb_EC(qc,e_code):
     """
-    Given an error code string, for example 'X1' for a bit-flip error on the first qubit, applies the correct error correcting gate and returns the QuantumCircuit object.
-    This method is used in conjunction with Qiskit's 'QuantumCircuit.if_test()' method to make this conditional on syndrome measurement through ancillary qubits.
+    Applies the required single qubit error correcting gate given an inputted quantum circuit and a single qubit error code.
+
+    Example:
+    ```python
+    from qiskit import QuantumCircuit
+
+    logical_qubit = logi_0() #error free logical qubit state.
+    logical_qubit.x(0) #manually introduce bit flip error on the 1st physical qubit.
+
+    error_corrected_logical_qubit = single_qb_EC(logical_qubit,'X1') #correct error through application of an additional bit flip gate on the 1st qubit.
+    ```
     
-    :param qc: QuantumCircuit object to which the single qubit error correcting gate should be applied.
-    :param e_code: The error code string defining the single qubit error to be corrected. e.g. 'X1' is a bit-flip error on the first qubit.
-    :return qc: The error corrected QuantumCircuit object.
+    :param qc: The quantum circuit to which the single qubit error correcting gate should be applied.
+    :type qc: QuantumCircuit
+    :param e_code: The error code string defining the single qubit error to be corrected.
+    :type e_code: str
+    :returns: The quantum circuit corrected for the inputted single qubit error.
+    :rtype: QuantumCircuit
+
+
     """
     ind = error_binaries.index(e_code)
     EC_str = error_paulis[ind]
@@ -108,12 +137,15 @@ def single_qb_EC(qc,e_code):
 
 def dynamic_error_correction(qc,clr):
     """
-    Taking in a circuit produced by the 'syndrome_detection' method and the ClassicalRegister that will contain the results of the syndrome measurment,
-    Qiskits dynamic programming capabilities are used to test for all possible single qubit errors and apply the corresponding error correcting gate.
+    Takes in a circuit produced by the 'syndrome_detection' method and the ClassicalRegister that will contain the results of the syndrome measurment. Subsequently tests the contents
+    of the classical register against a map of known single qubit error syndrome measurements to determine the single qubit error and applies the corresponding gate.
     
-    :param qc: Post syndrome measurement QuantumCircuit object within which single qubit errors may need to be corrected.
+    :param qc: Quantum circuit produced by 'syndrome_detection' within which a single qubit error may need to be corrected.
+    :type qc: QuantumCircuit
     :param clr: The classical register holding the results of previously applied syndrome measurments.
-    :return qc: The complete single qubit error correcting circuit from which the logical qubit statevcan be re-extracted.
+    :type clr: ClassicalRegister
+    :returns qc: The complete single qubit error correcting circuit from which the logical qubit state can be further manipulated or extracted.
+    :rtype: QuantumCircuit
     """
     for e_code in error_binaries:
         with qc.if_test((clr,e_code)):
@@ -125,11 +157,14 @@ def dynamic_error_correction(qc,clr):
 
 def QEC(logical_qubit):
     """
-    Compilation of the above 'syndrome_measurment' and 'dynamic_error_correction' functions to perform single qubit error correction on a single 
-    logical qubit of the 5 qubit code.
+    Given a logical qubit encoded in the 5-qubit-code possibly including a single qubit error, single qubit error correction is performed through syndrome measurements using ancillary qubits 
+    and the single qubit error corrected. 
     
-    :param logical_qubit: 5 qubit QuantumCircuit object containing the current state of a single logical qubit.
-    :return qc: The complete single qubit error correcting circuit for 'logical_qubit' from which the logical qubit state can be re-extracted.
+    :param logical_qubit: Quantum circuit containing the current state of a single logical qubit, possibly containing a single qubit error.
+    :type logical_qubit: QuantumCircuit
+    :returns qc: The complete single qubit error correcting circuit for 'logical_qubit' from which the logical qubit state can be further manipulated or extracted.
+    :returns clr: The classical register to which syndrome measurements are saved. The contents of this classical register are reset and is only returned for mapping 'qc' to larger quantum circuits.
+    :rtype qc: QuantumCircuit
     """
     
     qc, clr = syndrome_detection(logical_qubit)

@@ -150,9 +150,63 @@ def measure_logical_qubits(quantum_circuit, logical_qubit_list):
 #-------------------------------------------------------------Refactoring----------------------------------------------------------------
 
 class LogicalQuantumCircuit():
+    """
+    A quantum circuit framework for performing transversal operations and single qubit error correction in the 5-qubit-code. Methods and attributes meant to closely follow the framework of a 
+    :python:`qiskit.QuantumCircuit` object for ease of use.
+
+    Attributes:
+    -----------
+
+    qubit_map : list
+        A map grouping the physical qubits into the logical and ancillary qubits they represent. 
+    logical_qubit_map : list
+        A map grouping the physical qubits into the logical qubits they represent.
+    ancillary_qubit_map : list
+        A map grouping the physical qubits into the ancillary qubit sets they represent.
+    qc : QuantumCircuit
+        The :python:`qiskit.QuantumCircuit` object representing the logical quantum circuit. It is this attribute object that is interfaced with to perform logical operations, error correction and measurements.
+    num_logical_qubits : int
+        The number of logical qubits encoded in the 5-qubit-code contained within the :python:`LogicalQuantumCircuit`
+
+    Methods:
+    --------
+
+    Logical Operations:
+    -------------------
+    
+    x : Applies the logical :math:`X_L` quantum gate to an indexed logical qubit of the :python:`LogicalQuantumCircuit.qc`. Analogous to the application of the single qubit :math:`X` gate to a :python:`qiskit.QuantumCircuit` object.
+    y : Applies the logical :math:`Y_L` quantum gate to an indexed logical qubit of the :python:`LogicalQuantumCircuit.qc`. Analogous to the application of the single qubit :math:`Y` gate to a :python:`qiskit.QuantumCircuit` object.
+    z : Applies the logical :math:`Z_L` quantum gate to an indexed logical qubit of the :python:`LogicalQuantumCircuit.qc`. Analogous to the application of the single qubit :math:`Z` gate to a :python:`qiskit.QuantumCircuit` object.
+    k : Applies the logical :math:`K_{s_x,s_y,s_z}` quantum gate to an indexed logical qubit of the :python:`LogicalQuantumCircuit.qc`.
+    cx : Applies the logical :math:`CX_L` quantum gate to a pair of indexed logical qubits of the :python:`LogicalQuantumCircuit.qc`. Analogous to the application of the two qubit :math:`CX` gate to a :python:`qiskit.QuantumCircuit` object.
+    cy : Applies the logical :math:`CY_L` quantum gate to a pair of indexed logical qubits of the :python:`LogicalQuantumCircuit.qc`. Analogous to the application of the two qubit :math:`CY` gate to a :python:`qiskit.QuantumCircuit` object.
+    cz : Applies the logical :math:`CZ_L` quantum gate to a pair of indexed logical qubits of the :python:`LogicalQuantumCircuit.qc`. Analogous to the application of the two qubit :math:`CZ` gate to a :python:`qiskit.QuantumCircuit` object.
+
+    Measurement:
+    ------------
+
+    measure_all : Measures all logical qubits of :python:`LogicalQuantumCircuit.qc` out to classical registers in the computational basis with labels :python:`'meas+str(i)'` for logical qubit index :python:`i`. Analogous to the :python:`QuantumCircuit.measure_all()` method of the standard Qiskit :python:`qiskit.QuantumCircuit` object.
+    measure : Measures the indexed logical qubits of :python:`LogicalQuantumCircuit.qc` out to classical registers in the computational basis with labels :python:`'meas+str(i)'` for logical qubit index :python:`i`. Analogous to the :python:`QuantumCircuit.measure(i)` method of the standard Qiskit :python:`qiskit.QuantumCircuit` object.
+
+    Helper Methods:
+    ---------------
+
+    post_op_QEC : Performs single qubit error correction on the current state of the logical qubits of :python:`LogicalQuantumCircuit.qc`. Called during the application of logical operations such as :python:`LogicalQuantumCircuit.x(0)` to correct for any single qubit errors accumulated during the operation.
+
+    """
 
 
     def __init__(self,n_logical_qubits,structure = '9n'):
+        """
+        Generates an instance of :python:`LogicalQuantumCircuit` containing :python:`n_logical_qubits` with all the required attributes.
+        
+        :param self: LogicalQuantumCircuit
+        :type self: LogicalQuantumCircuit
+        :param n_logical_qubits: Number of logical qubits required in :python:`LogicalQuantumCircuit.qc`
+        :type n_logical_qubits: int
+        :param structure: Optional string defining the structure of :python:`LogicalQuantumCircuit.qc` with respect to the ordering of logical qubits and sets of ancillary qubits used for single qubit error correction. Default: :python:`9n`.
+        :type structure: str
+        """
         qubit_map = []
         if structure == '9n':
             logical_qubit_map = [[x for x in range(9*n+4,9*n+9)] for n in range(n_logical_qubits)]
@@ -191,7 +245,7 @@ class LogicalQuantumCircuit():
             qc = qc.compose(QC,qubit_map[i],clr)
             i+=1
     
-        #Quantum Circuit Attribute
+        #Quantum Circuit Attributes
         self.qc = qc
         self.num_logical_qubits = n_logical_qubits
 
@@ -203,6 +257,23 @@ class LogicalQuantumCircuit():
 
     #-----------------------------Single Qubit Gates------------------------------------
     def x(self, logical_qubit):
+        """
+        Applies the logical :math:`X_L` quantum gate to an indexed logical qubit of the :python:`LogicalQuantumCircuit.qc`. Analogous to the application of the single qubit :math:`X` gate to a :python:`qiskit.QuantumCircuit` object.
+
+        Example:
+        ```python
+        logical_circuit = LogicalQuantumCircuit(1)
+        logical_circuit.x(0) #Applies the logical X operation to the 1st qubit of the LogicalQuantumCircuit.
+
+        logical_circuit_1 = LogicalQuantumCircuit(5)
+        logical_circuit_1.x(3) #Applies the logical X operation to the 4th qubit of the LogicalQuantumCircuit.
+        ```
+        
+        :param self: LogicalQuantumCircuit
+        :type self: LogicalQuantumCircuit
+        :param logical_qubit: The index of the logical qubit to which the operation should be applied.
+        :type logical_qubit: int
+        """
 
         self.qc.barrier()
         op_circ = X_L
@@ -213,6 +284,23 @@ class LogicalQuantumCircuit():
         return None
     
     def z(self, logical_qubit):
+        """
+        Applies the logical :math:`Z_L` quantum gate to an indexed logical qubit of the :python:`LogicalQuantumCircuit.qc`. Analogous to the application of the single qubit :math:`Z` gate to a :python:`qiskit.QuantumCircuit` object.
+
+        Example:
+        ```python
+        logical_circuit = LogicalQuantumCircuit(1)
+        logical_circuit.z(0) #Applies the logical Z operation to the 1st qubit of the LogicalQuantumCircuit.
+
+        logical_circuit_1 = LogicalQuantumCircuit(5)
+        logical_circuit_1.z(3) #Applies the logical Z operation to the 4th qubit of the LogicalQuantumCircuit.
+        ```
+        
+        :param self: LogicalQuantumCircuit
+        :type self: LogicalQuantumCircuit
+        :param logical_qubit: The index of the logical qubit to which the operation should be applied.
+        :type logical_qubit: int
+        """
         
         self.qc.barrier()
         op_circ = X_L
@@ -223,6 +311,23 @@ class LogicalQuantumCircuit():
         return None
     
     def y(self, logical_qubit):
+        """
+        Applies the logical :math:`Y_L` quantum gate to an indexed logical qubit of the :python:`LogicalQuantumCircuit.qc`. Analogous to the application of the single qubit :math:`Y` gate to a :python:`qiskit.QuantumCircuit` object.
+
+        Example:
+        ```python
+        logical_circuit = LogicalQuantumCircuit(1)
+        logical_circuit.y(0) #Applies the logical Y operation to the 1st qubit of the LogicalQuantumCircuit.
+
+        logical_circuit_1 = LogicalQuantumCircuit(5)
+        logical_circuit_1.y(3) #Applies the logical Y operation to the 4th qubit of the LogicalQuantumCircuit.
+        ```
+        
+        :param self: LogicalQuantumCircuit
+        :type self: LogicalQuantumCircuit
+        :param logical_qubit: The index of the logical qubit to which the operation should be applied.
+        :type logical_qubit: int
+        """
         
         self.qc.barrier()
         op_circ = Y_L
@@ -233,6 +338,25 @@ class LogicalQuantumCircuit():
         return None
     
     def K(self, logical_qubit, params):
+        """
+        Applies the logical :math:`K_{s_x,s_y,s_z}` quantum gate to an indexed logical qubit of the :python:`LogicalQuantumCircuit.qc`.
+
+        Example:
+        ```python
+        logical_circuit = LogicalQuantumCircuit(1)
+        logical_circuit.k(0, [1,1,1]) #Applies the logical K_{+,+,+} operation to the 1st qubit of the LogicalQuantumCircuit.
+
+        logical_circuit_1 = LogicalQuantumCircuit(5)
+        logical_circuit_1.k(4, [-1,1,-1]) #Applies the logical K_{-,+,-} operation to the 4th qubit of the LogicalQuantumCircuit.
+        ```
+        
+        :param self: LogicalQuantumCircuit
+        :type self: LogicalQuantumCircuit
+        :param logical_qubit: The index of the logical qubit to which the operation should be applied.
+        :type logical_qubit: int
+        :param params: List of parameters [sx,sy,sz] used in construction of the :math:`K_{s_x,s_y,s_z}` gate. See documentation of :python:`TransversalLogicGates.K_gate` for more details.
+        :type params: list
+        """
         K = K_gate(params[0],params[1],params[2])
         map = [i for i in self.logical_qubit_map[logical_qubit]]
         self.qc.barrier()
@@ -246,6 +370,25 @@ class LogicalQuantumCircuit():
     #--------------------------------------------Two Qubit Contol Gates----------------------------------------
     
     def cx(self, logical_control_qubit, logical_target_qubit):
+        """
+        Applies the logical :math:`CX_L` quantum gate to a pair of indexed logical qubits of the :python:`LogicalQuantumCircuit.qc`. Analogous to the application of the two qubit :math:`CX` gate to a :python:`qiskit.QuantumCircuit` object.
+
+        Example:
+        ```python
+        logical_circuit = LogicalQuantumCircuit(2)
+        logical_circuit.cx(0,1) #Applies the logical CX operation to the LogicalQuantumCircuit with the 1st qubit acting as the control qubit and the 2nd as the target.
+
+        logical_circuit_1 = LogicalQuantumCircuit(5)
+        logical_circuit.cx(1,3) #Applies the logical CX operation to the LogicalQuantumCircuit with the 2nd qubit acting as the control qubit and the 4th as the target.
+        ```
+        
+        :param self: LogicalQuantumCircuit
+        :type self: LogicalQuantumCircuit
+        :param logical_control_qubit: The index of the control logical qubit to which the operation should be applied.
+        :type logical_control_qubit: int
+        :param logical_control_qubit: The index of the target logical qubit to which the operation should be applied.
+        :type logical_control_qubit: int
+        """
 
         self.qc.barrier()
         op_circ = transversal_CX()
@@ -259,6 +402,25 @@ class LogicalQuantumCircuit():
         return None
     
     def cz(self, logical_control_qubit, logical_target_qubit):
+        """
+        Applies the logical :math:`CZ_L` quantum gate to a pair of indexed logical qubits of the :python:`LogicalQuantumCircuit.qc`. Analogous to the application of the two qubit :math:`CZ` gate to a :python:`qiskit.QuantumCircuit` object.
+
+        Example:
+        ```python
+        logical_circuit = LogicalQuantumCircuit(2)
+        logical_circuit.cz(0,1) #Applies the logical CZ operation to the LogicalQuantumCircuit with the 1st qubit acting as the control qubit and the 2nd as the target.
+
+        logical_circuit_1 = LogicalQuantumCircuit(5)
+        logical_circuit.cz(1,3) #Applies the logical CZ operation to the LogicalQuantumCircuit with the 2nd qubit acting as the control qubit and the 4th as the target.
+        ```
+        
+        :param self: LogicalQuantumCircuit
+        :type self: LogicalQuantumCircuit
+        :param logical_control_qubit: The index of the control logical qubit to which the operation should be applied.
+        :type logical_control_qubit: int
+        :param logical_control_qubit: The index of the target logical qubit to which the operation should be applied.
+        :type logical_control_qubit: int
+        """
 
         self.qc.barrier()
         op_circ = transversal_CZ()
@@ -270,6 +432,25 @@ class LogicalQuantumCircuit():
         return None
     
     def cy(self, logical_control_qubit, logical_target_qubit):
+        """
+        Applies the logical :math:`CY_L` quantum gate to a pair of indexed logical qubits of the :python:`LogicalQuantumCircuit.qc`. Analogous to the application of the two qubit :math:`CY` gate to a :python:`qiskit.QuantumCircuit` object.
+
+        Example:
+        ```python
+        logical_circuit = LogicalQuantumCircuit(2)
+        logical_circuit.cy(0,1) #Applies the logical CY operation to the LogicalQuantumCircuit with the 1st qubit acting as the control qubit and the 2nd as the target.
+
+        logical_circuit_1 = LogicalQuantumCircuit(5)
+        logical_circuit.cy(1,3) #Applies the logical CY operation to the LogicalQuantumCircuit with the 2nd qubit acting as the control qubit and the 4th as the target.
+        ```
+        
+        :param self: LogicalQuantumCircuit
+        :type self: LogicalQuantumCircuit
+        :param logical_control_qubit: The index of the control logical qubit to which the operation should be applied.
+        :type logical_control_qubit: int
+        :param logical_control_qubit: The index of the target logical qubit to which the operation should be applied.
+        :type logical_control_qubit: int
+        """
 
         self.qc.barrier()
         op_circ = transversal_CY()
@@ -284,6 +465,13 @@ class LogicalQuantumCircuit():
     
 
     def post_op_QEC(self):
+        """
+        Performs single qubit error correction on the current state of the logical qubits of :python:`LogicalQuantumCircuit.qc`. Called during the application of logical operations such as :python:`LogicalQuantumCircuit.x(0)`
+        to correct for any single qubit errors accumulated during the operation.
+        
+        :param self: LogicalQuantumCircuit
+        :type self: LogicalQuantumCircuit
+        """
         empty_logical_qubits = [QuantumCircuit(5) for i in range(self.num_logical_qubits)]
         i=0
         for Lq in empty_logical_qubits:
@@ -298,6 +486,13 @@ class LogicalQuantumCircuit():
     #------------------------------------------------------------Measurement----------------------------------------------------------------
 
     def measure_all(self):
+        """
+        Measures all logical qubits of :python:`LogicalQuantumCircuit.qc` out to classical registers in the computational basis with labels :python:`'meas+str(i)'` for logical qubit index :python:`i`.
+        Analogous to the :python:`QuantumCircuit.measure_all()` method of the standard Qiskit :python:`qiskit.QuantumCircuit` object.
+
+        :param self: LogicalQuantumCircuit
+        :type self: LogicalQuantumCircuit
+        """
         
         for i in range(self.num_logical_qubits):
             measure_reg = ClassicalRegister(5, 'meas'+str(i))
@@ -307,6 +502,15 @@ class LogicalQuantumCircuit():
         return None
     
     def measure(self, logical_qubits):
+        """
+        Measures the indexed logical qubits of :python:`LogicalQuantumCircuit.qc` out to classical registers in the computational basis with labels :python:`'meas+str(i)'` for logical qubit index :python:`i`.
+        Analogous to the :python:`QuantumCircuit.measure(i)` method of the standard Qiskit :python:`qiskit.QuantumCircuit` object.
+
+        :param self: LogicalQuantumCircuit
+        :type self: LogicalQuantumCircuit
+        :param logical_qubits: The logical qubit index or indices that should be measured.
+        :type logical_qubits: list or int
+        """
 
         if type(logical_qubits) == int:
             measure_reg = ClassicalRegister(5, 'meas'+str(logical_qubits))
@@ -323,25 +527,30 @@ class LogicalQuantumCircuit():
 
 
 
-#Test if action of X_L is as expected and general framwork works.
+#Testing:
 
-test = LogicalQuantumCircuit(1)
-test.x(0)
-test.measure_all()
-test.qc.draw(output = 'mpl', filename = '3', fold = -1)
+test = False
 
-from qiskit import transpile
-from qiskit_aer import AerSimulator
-from qiskit.visualization import plot_histogram
+if test:
+    #Test if action of X_L is as expected and general framwork works.
 
-simulator = AerSimulator()
-circ = transpile(test.qc, simulator)
+    test = LogicalQuantumCircuit(1)
+    test.x(0)
+    test.measure_all()
+    test.qc.draw(output = 'mpl', filename = '3', fold = -1)
 
-result = simulator.run(circ).result() #Run and get counts
-print(result)
-counts = result.get_counts(circ)
-print(counts)
-plot_histogram(counts, title='Logical X counts on |0>_L', filename = 'X_L_Test') 
+    from qiskit import transpile
+    from qiskit_aer import AerSimulator
+    from qiskit.visualization import plot_histogram
 
-#Works, but measurement in the computational basis isnt ideal. Need to figure out a way to measure in the 'logical qubit basis'. 
-#Encoding projector is a singular matrix so cant apply an inverse to re-map to the computational basis before measurement. Need to think about this. 
+    simulator = AerSimulator()
+    circ = transpile(test.qc, simulator)
+
+    result = simulator.run(circ).result() #Run and get counts
+    print(result)
+    counts = result.get_counts(circ)
+    print(counts)
+    plot_histogram(counts, title='Logical X counts on |0>_L', filename = 'X_L_Test') 
+
+    #Works, but measurement in the computational basis isnt ideal. Need to figure out a way to measure in the 'logical qubit basis'. 
+    #Encoding projector is a singular matrix so cant apply an inverse to re-map to the computational basis before measurement. Need to think about this. 
