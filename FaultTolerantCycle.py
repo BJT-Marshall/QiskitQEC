@@ -525,7 +525,73 @@ class LogicalQuantumCircuit():
         return None
 
 
+def pseudo_basis_transformation(n_logical_qubits, counts):
+    """
+    Transforms a dictionary of count data in the computational basis to the logical qubit basis of the 5-qubit-code. Use this method
+    for clearly displaying and interpreting count data obtained from running :python:`LogicalQuantumCircuit.qc` objects using Qiskit simulators 
+    or hardware. This method assumes that no multi-qubit errors have occured and all singke qubit errors have been succesfully corrected.
+    
+    Assuming no multi-qubit errors, sets of physical qubits states collapse to product states in the computaional basis that can be attributed to product states in the logical qubit basis
+    and hence conversion between the two is possible. Pre-measurement basis transformation is not possible due to the singularity of the projector encoding the logical qubit basis states.
 
+    :param n_logical_qubits: The number of logical qubits contained in the quantum circuit. Contained in the :python:`LogicalQuantumCircuit.num_logical_qubits` attribute of a :python:`LogicalQuantumCircuit` object. 
+    :type n_logical_qubits: int
+    :param counts: Dictionary of count data in the computational basis as returned by the :python:`result.get_counts()` method of a :python:`qiskit` results object.
+    :type counts: dict
+    :returns logical_counts: Dictionary of count data in the logical qubit basis with basis states :math:`\ket{0}_L` and :math:`\ket{1}_L`
+    :rtype: dict
+    """
+
+    #create a dictionary for all binary keys in the logical qubit basis, i.e. [0, 2^n-1] in binary for n logical qubits
+    logical_counts = {}
+    for i in range(2**(n_logical_qubits)):
+        logical_counts[bin(i)[2:]] = 0
+    
+    logi_0_count_states = [00000,10010,1001,10100,1010,11011,110,11000,11101,11,11110,1111,10001,1100,10111,101]
+    logi_1_count_states = [11111,1101,10110,1011,10101,100,11001,111,10,11100,1,10000,1110,10011,1000,11010]
+    for key in counts:
+        #logical_key is used to reference the correct key in logical_counts when adding counts.
+        logical_key = ''
+        #temp_key is the complete physical qubit key, ignoring ancillary qubits, i.e. 0000011111 for two logical qubits measured to collapse to the |00000>|11111> product state
+        temp_key = ''
+        for i in range(6*n_logical_qubits):
+            if key[i] != ' ':
+                temp_key+=key[i]
+        
+        for j in range(n_logical_qubits):
+            single_logi_qubit_key = temp_key[5*j:5*(j+1)]
+            if int(single_logi_qubit_key) in logi_0_count_states:
+                logical_key = '0' + logical_key
+            elif int(single_logi_qubit_key) in logi_1_count_states:
+                logical_key = '1' + logical_key
+        
+        #append the logical key dictionary with counts in the correct logical key
+        logical_key = str(int(logical_key)) #removes leading zeros and converts back to a string to index into logical_counts
+        logical_counts[logical_key] += counts[key]
+
+    #formatting back in the leading zeros
+    for k in list(logical_counts):
+        if len(k) != n_logical_qubits:
+            full_key = ''
+            while len(full_key) != (n_logical_qubits-len(k)):
+                full_key += '0'
+            full_key += k
+            logical_counts[full_key]=logical_counts.pop(k)
+
+    #deleting all logical basis state keys with a count of zero from the dictionary
+    for element in list(logical_counts):
+        if logical_counts[element] == 0:
+            del logical_counts[element]
+        
+    return logical_counts
+
+
+def get_counts(quantum_circuit,results_object, num_logical_qubits):
+    counts = results_object.get_counts(quantum_circuit)
+    logical_counts = pseudo_basis_transformation(num_logical_qubits,counts)
+
+    return logical_counts
+    
 
 #Testing:
 
@@ -534,8 +600,12 @@ test = False
 if test:
     #Test if action of X_L is as expected and general framwork works.
 
-    test = LogicalQuantumCircuit(1)
+    test = LogicalQuantumCircuit(2)
+    #implement manual error------
+    test.qc.x(5) #bit flip error on the 1st physical qubit of the 1st logical qubit
+    #----------------------------
     test.x(0)
+    test.x(1)
     test.measure_all()
     test.qc.draw(output = 'mpl', filename = '3', fold = -1)
 
@@ -546,11 +616,10 @@ if test:
     simulator = AerSimulator()
     circ = transpile(test.qc, simulator)
 
-    result = simulator.run(circ).result() #Run and get counts
-    print(result)
-    counts = result.get_counts(circ)
-    print(counts)
-    plot_histogram(counts, title='Logical X counts on |0>_L', filename = 'X_L_Test') 
-
-    #Works, but measurement in the computational basis isnt ideal. Need to figure out a way to measure in the 'logical qubit basis'. 
-    #Encoding projector is a singular matrix so cant apply an inverse to re-map to the computational basis before measurement. Need to think about this. 
+    result = simulator.run(circ).result() #Run and get counts    
+    #print(result)
+    counts = result.get_counts(circ) #counts in the computational basis
+    #plot_histogram(counts, title='Logical X counts on |0>_L', filename = 'X_L_Test') 
+    
+    logical_counts = get_counts(circ,result, test.num_logical_qubits)
+    print(logical_counts) #counts in the logical qubit basis assuming only corrected single qubit errors. 
